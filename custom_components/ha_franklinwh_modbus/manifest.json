@@ -1,0 +1,14 @@
+{
+  "domain": "ha_franklinwh_modbus",
+  "name": "FranklinWH Modbus",
+  "codeowners": ["@hAr1x"],
+  "config_flow": true,
+  "documentation": "https://github.com/hAr1x/ha-franklinwh-modbus",
+  "issue_tracker": "https://github.com/hAr1x/ha-franklinwh-modbus/issues",
+  "iot_class": "local_polling",
+  "requirements": [
+    "pymodbus>=3.6.0",
+    "franklinwh_local_api>=0.1.0"
+  ],
+  "version": "0.1.0"
+}

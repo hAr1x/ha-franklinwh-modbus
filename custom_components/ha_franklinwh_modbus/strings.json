@@ -1,0 +1,90 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to FranklinWH aGate",
+        "description": "Enter the connection details for your FranklinWH aGate. This connects directly over local Modbus TCP - no cloud account required.",
+        "data": {
+          "name": "Name",
+          "host": "IP Address",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the aGate. Check the IP address and port.",
+      "unknown": "Unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This aGate is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "FranklinWH Modbus Options",
+        "data": {
+          "name": "Name",
+          "host": "IP Address",
+          "port": "Port",
+          "watchdog_hours": "Battery command watchdog (hours)",
+          "polling_seconds": "Polling interval (seconds)"
+        },
+        "data_description": {
+          "watchdog_hours": "How long a manual battery charge/discharge command stays active before being automatically released, in case you forget to stop it manually.",
+          "polling_seconds": "How often to poll the aGate for updated status."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the aGate. Check the IP address and port.",
+      "unknown": "Unexpected error occurred."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery_power": { "name": "Battery Power" },
+      "battery_charging_power": { "name": "Battery Charging Power" },
+      "battery_discharging_power": { "name": "Battery Discharging Power" },
+      "grid_power": { "name": "Grid Power" },
+      "grid_import_power": { "name": "Grid Import Power" },
+      "grid_export_power": { "name": "Grid Export Power" },
+      "solar_power": { "name": "Solar Power" },
+      "home_load_power": { "name": "Home Load Power" },
+      "battery_command_charge_power": { "name": "Battery Command Charge Power" },
+      "battery_command_discharge_power": { "name": "Battery Command Discharge Power" },
+      "battery_capacity": { "name": "Battery Capacity" },
+      "battery_energy_available": { "name": "Battery Energy Available" },
+      "battery_soc": { "name": "Battery State of Charge" },
+      "battery_soc_rounded": { "name": "Battery State of Charge (Rounded)" },
+      "battery_soh": { "name": "Battery State of Health" },
+      "hw_self_reserve_pct": { "name": "Self-Consumption Reserve (Hardware)" },
+      "hw_tou_reserve_pct": { "name": "TOU Reserve (Hardware)" },
+      "grid_voltage_ln": { "name": "Grid Voltage (L-N)" },
+      "grid_voltage_ll": { "name": "Grid Voltage (L-L)" },
+      "grid_frequency": { "name": "Grid Frequency" },
+      "ambient_temperature": { "name": "Ambient Temperature" },
+      "cabinet_temperature": { "name": "Cabinet Temperature" },
+      "tou_dispatch_state": { "name": "TOU Dispatch State" },
+      "battery_command_pct_raw": { "name": "Battery Command Percent (Raw)" }
+    },
+    "binary_sensor": {
+      "grid_connected": { "name": "Grid Connected" },
+      "alarm_active": { "name": "Alarm Active" },
+      "battery_command_active": { "name": "Battery Command Active" }
+    },
+    "select": {
+      "operating_mode": { "name": "Operating Mode" }
+    },
+    "number": {
+      "self_consumption_reserve": { "name": "Self-Consumption Reserve" },
+      "tou_reserve": { "name": "TOU Reserve" },
+      "battery_charge_power": { "name": "Battery Charge Power" },
+      "battery_discharge_power": { "name": "Battery Discharge Power" }
+    },
+    "switch": {
+      "battery_charge": { "name": "Battery Charge" },
+      "battery_discharge": { "name": "Battery Discharge" }
+    }
+  }
+}
