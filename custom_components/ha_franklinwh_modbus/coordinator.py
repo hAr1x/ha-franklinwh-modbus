@@ -20,16 +20,15 @@ import logging
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-
 from franklinwh_local_api import (
     FranklinWHConnectionError,
     FranklinWHDeviceInfo,
     FranklinWHLocalClient,
     FranklinWHStatus,
 )
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 if TYPE_CHECKING:
     from .cloud import FranklinWHCloudClient
@@ -61,7 +60,7 @@ class FranklinWHCoordinator(DataUpdateCoordinator[FranklinWHStatus]):
         poll_interval_s: float,
         watchdog_seconds: float,
         device_info: FranklinWHDeviceInfo,
-        cloud_client: "FranklinWHCloudClient | None" = None,
+        cloud_client: FranklinWHCloudClient | None = None,
     ) -> None:
         super().__init__(
             hass,
@@ -83,10 +82,10 @@ class FranklinWHCoordinator(DataUpdateCoordinator[FranklinWHStatus]):
         # module docstring and LIMITATIONS.md.
         self.cloud_client = cloud_client
 
-        self.self_reserve_number: "FranklinReserveNumber | None" = None
-        self.tou_reserve_number: "FranklinReserveNumber | None" = None
-        self.charge_power_number: "FranklinBatteryPowerNumber | None" = None
-        self.discharge_power_number: "FranklinBatteryPowerNumber | None" = None
+        self.self_reserve_number: FranklinReserveNumber | None = None
+        self.tou_reserve_number: FranklinReserveNumber | None = None
+        self.charge_power_number: FranklinBatteryPowerNumber | None = None
+        self.discharge_power_number: FranklinBatteryPowerNumber | None = None
 
     async def _async_update_data(self) -> FranklinWHStatus:
         try:

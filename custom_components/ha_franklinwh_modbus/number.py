@@ -58,6 +58,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from franklinwh_local_api import OperatingMode
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -76,7 +77,6 @@ from .const import (
 )
 from .coordinator import FranklinWHCoordinator
 from .entity import FranklinWHBaseEntity
-from franklinwh_local_api import OperatingMode
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -154,7 +154,7 @@ class FranklinReserveNumber(FranklinWHBaseEntity, RestoreEntity, NumberEntity):
                 await self.coordinator.cloud_client.async_update_soc_cloud(
                     self._mode, int(value)
                 )
-            except Exception:  # noqa: BLE001
+            except Exception:
                 _LOGGER.warning(
                     "Failed to push %s reserve via Cloud Control - reverting "
                     "to previous value", self._mode.value, exc_info=True,
@@ -176,7 +176,7 @@ class FranklinReserveNumber(FranklinWHBaseEntity, RestoreEntity, NumberEntity):
             self._attr_native_value = value
             try:
                 await self._async_setter(int(value))
-            except Exception:  # noqa: BLE001
+            except Exception:
                 _LOGGER.warning(
                     "Failed to push %s reserve to hardware - reverting to "
                     "previous value", self._mode.value, exc_info=True,

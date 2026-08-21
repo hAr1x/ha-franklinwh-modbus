@@ -18,6 +18,11 @@ from __future__ import annotations
 
 import logging
 
+from franklinwh_local_api import (
+    FranklinWHConnectionError,
+    FranklinWHDeviceInfo,
+    FranklinWHLocalClient,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
@@ -36,11 +41,6 @@ from .const import (
     DOMAIN,
 )
 from .coordinator import FranklinWHCoordinator
-from franklinwh_local_api import (
-    FranklinWHConnectionError,
-    FranklinWHDeviceInfo,
-    FranklinWHLocalClient,
-)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     try:
         device_info = await client.async_get_device_info()
-    except Exception:  # noqa: BLE001
+    except Exception:
         _LOGGER.warning(
             "Could not read device identification (Model 1) from aGate at "
             "%s:%s - falling back to generic device info", host, port,

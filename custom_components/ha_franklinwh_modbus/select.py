@@ -25,7 +25,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import ClassVar
 
+from franklinwh_local_api import OperatingMode
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -39,7 +41,6 @@ from .const import (
 )
 from .coordinator import FranklinWHCoordinator
 from .entity import FranklinWHBaseEntity
-from franklinwh_local_api import OperatingMode
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ class FranklinOperatingModeSelect(FranklinWHBaseEntity, SelectEntity):
     Self-Consumption, or TOU."""
 
     _attr_translation_key = "operating_mode"
-    _attr_options = list(_MODE_TO_LABEL.values())
+    _attr_options: ClassVar[list[str]] = list(_MODE_TO_LABEL.values())
 
     def __init__(self, coordinator: FranklinWHCoordinator) -> None:
         super().__init__(coordinator)
@@ -120,7 +121,7 @@ class FranklinOperatingModeSelect(FranklinWHBaseEntity, SelectEntity):
         if number_entity.is_dirty:
             try:
                 await number_entity.async_push_to_hardware()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 _LOGGER.warning(
                     "Failed to push %s reserve to hardware after mode switch",
                     new_mode.value, exc_info=True,

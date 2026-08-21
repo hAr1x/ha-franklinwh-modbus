@@ -19,6 +19,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from franklinwh_local_api import FranklinWHStatus
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
@@ -31,7 +32,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN
 from .coordinator import FranklinWHCoordinator
 from .entity import FranklinWHBaseEntity
-from franklinwh_local_api import FranklinWHStatus
 
 
 @dataclass(frozen=True, kw_only=True)

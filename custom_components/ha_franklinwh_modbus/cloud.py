@@ -38,7 +38,6 @@ import logging
 from typing import Any
 
 import httpx
-
 from franklinwh_local_api import OperatingMode
 
 _LOGGER = logging.getLogger(__name__)

@@ -20,6 +20,7 @@ import logging
 from typing import Any
 
 import voluptuous as vol
+from franklinwh_local_api import FranklinWHConnectionError, FranklinWHLocalClient
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.data_entry_flow import FlowResult
@@ -34,12 +35,11 @@ from .const import (
     CONF_WATCHDOG_HOURS,
     DEFAULT_CLOUD_ENABLED,
     DEFAULT_NAME,
-    DEFAULT_PORT,
     DEFAULT_POLLING_SECONDS,
+    DEFAULT_PORT,
     DEFAULT_WATCHDOG_HOURS,
     DOMAIN,
 )
-from franklinwh_local_api import FranklinWHConnectionError, FranklinWHLocalClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ class FranklinWHModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await _async_validate_connection(host, port)
             except FranklinWHConnectionError:
                 errors["base"] = "cannot_connect"
-            except Exception:  # noqa: BLE001
+            except Exception:
                 _LOGGER.exception("Unexpected error during setup validation")
                 errors["base"] = "unknown"
 
@@ -112,7 +112,7 @@ class FranklinWHModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
-    ) -> "FranklinWHModbusOptionsFlow":
+    ) -> FranklinWHModbusOptionsFlow:
         return FranklinWHModbusOptionsFlow()
 
 
@@ -149,7 +149,7 @@ class FranklinWHModbusOptionsFlow(config_entries.OptionsFlow):
                 await _async_validate_connection(host, port)
             except FranklinWHConnectionError:
                 errors["base"] = "cannot_connect"
-            except Exception:  # noqa: BLE001
+            except Exception:
                 _LOGGER.exception("Unexpected error during options validation")
                 errors["base"] = "unknown"
 
