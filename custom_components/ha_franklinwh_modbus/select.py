@@ -75,12 +75,26 @@ class FranklinOperatingModeSelect(FranklinWHBaseEntity, SelectEntity):
     async def async_select_option(self, option: str) -> None:
         target_mode = _LABEL_TO_MODE[option]
 
-        await self.coordinator.client.async_set_operating_mode(target_mode)
+        if self.coordinator.cloud_client is not None:
+            # Cloud Control path: switches mode via the FranklinWH
+            # Cloud API instead of a local Modbus write. This does not
+            # touch the two reserve % Number entities' dirty-flag logic
+            # at all - that mechanism exists only to work around a
+            # local Modbus hardware limitation (registers 15508/15509
+            # mirroring each other) that does not apply to the Cloud
+            # API's independently-addressed workMode parameter. See
+            # LIMITATIONS.md.
+            await self.coordinator.cloud_client.async_set_mode_cloud(target_mode)
+        else:
+            await self.coordinator.client.async_set_operating_mode(target_mode)
 
-        await asyncio.sleep(_RECONCILE_SETTLE_S)
-        status = await self.coordinator.client.async_get_status()
-        await self._async_reconcile_reserve(target_mode, status)
+            await asyncio.sleep(_RECONCILE_SETTLE_S)
+            status = await self.coordinator.client.async_get_status()
+            await self._async_reconcile_reserve(target_mode, status)
 
+        # Readback (current_option) always comes from the next local
+        # Modbus poll, regardless of which path was used above - this
+        # keeps the integration's iot_class of local_polling accurate.
         await self.coordinator.async_request_refresh()
 
     async def _async_reconcile_reserve(self, new_mode: OperatingMode, status) -> None:

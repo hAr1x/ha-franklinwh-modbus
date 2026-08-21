@@ -140,6 +140,31 @@ class FranklinReserveNumber(FranklinWHBaseEntity, RestoreEntity, NumberEntity):
             self._is_dirty = False
 
     async def async_set_native_value(self, value: float) -> None:
+        if self.coordinator.cloud_client is not None:
+            # Cloud Control path: the Cloud API's workMode parameter
+            # addresses each mode's reserve independently, so this
+            # value can always be pushed immediately regardless of
+            # which mode is currently active - the dirty-flag/mode-
+            # matching logic below exists only to work around the
+            # local Modbus hardware limitation where registers
+            # 15508/15509 mirror each other. See LIMITATIONS.md.
+            previous_value = self._attr_native_value
+            self._attr_native_value = value
+            try:
+                await self.coordinator.cloud_client.async_update_soc_cloud(
+                    self._mode, int(value)
+                )
+            except Exception:  # noqa: BLE001
+                _LOGGER.warning(
+                    "Failed to push %s reserve via Cloud Control - reverting "
+                    "to previous value", self._mode.value, exc_info=True,
+                )
+                self._attr_native_value = previous_value
+            self._is_dirty = False
+            self.async_write_ha_state()
+            await self.coordinator.async_request_refresh()
+            return
+
         current_mode = (
             self.coordinator.data.operating_mode
             if self.coordinator.data is not None
