@@ -23,7 +23,18 @@ from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
-from .const import CONF_POLLING_SECONDS, CONF_WATCHDOG_HOURS, DEFAULT_POLLING_SECONDS, DEFAULT_WATCHDOG_HOURS, DOMAIN
+from .cloud import FranklinWHCloudClient
+from .const import (
+    CONF_CLOUD_EMAIL,
+    CONF_CLOUD_ENABLED,
+    CONF_CLOUD_PASSWORD,
+    CONF_POLLING_SECONDS,
+    CONF_WATCHDOG_HOURS,
+    DEFAULT_CLOUD_ENABLED,
+    DEFAULT_POLLING_SECONDS,
+    DEFAULT_WATCHDOG_HOURS,
+    DOMAIN,
+)
 from .coordinator import FranklinWHCoordinator
 from franklinwh_local_api import (
     FranklinWHConnectionError,
@@ -73,6 +84,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     watchdog_hours = entry.options.get(CONF_WATCHDOG_HOURS, DEFAULT_WATCHDOG_HOURS)
     polling_seconds = entry.options.get(CONF_POLLING_SECONDS, DEFAULT_POLLING_SECONDS)
 
+    cloud_client: FranklinWHCloudClient | None = None
+    if entry.options.get(CONF_CLOUD_ENABLED, DEFAULT_CLOUD_ENABLED):
+        cloud_email = entry.options.get(CONF_CLOUD_EMAIL, "")
+        cloud_password = entry.options.get(CONF_CLOUD_PASSWORD, "")
+        if cloud_email and cloud_password:
+            cloud_client = FranklinWHCloudClient(cloud_email, cloud_password)
+        else:
+            _LOGGER.warning(
+                "Cloud Control is enabled but no email/password is set - "
+                "mode-switching and reserve % will use local Modbus only"
+            )
+
     coordinator = FranklinWHCoordinator(
         hass,
         entry,
@@ -80,6 +103,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         poll_interval_s=polling_seconds,
         watchdog_seconds=watchdog_hours * 3600.0,
         device_info=device_info,
+        cloud_client=cloud_client,
     )
     await coordinator.async_config_entry_first_refresh()
 
@@ -106,4 +130,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok:
         coordinator: FranklinWHCoordinator = hass.data[DOMAIN].pop(entry.entry_id)
         await coordinator.client.close()
+        if coordinator.cloud_client is not None:
+            await coordinator.cloud_client.async_close()
     return unload_ok

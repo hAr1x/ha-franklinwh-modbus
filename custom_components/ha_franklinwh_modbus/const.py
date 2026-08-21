@@ -21,12 +21,16 @@ DOMAIN = "ha_franklinwh_modbus"
 CONF_NAME = "name"
 CONF_WATCHDOG_HOURS = "watchdog_hours"
 CONF_POLLING_SECONDS = "polling_seconds"
+CONF_CLOUD_ENABLED = "cloud_enabled"
+CONF_CLOUD_EMAIL = "cloud_email"
+CONF_CLOUD_PASSWORD = "cloud_password"
 
 # --- Defaults ---
 DEFAULT_NAME = "franklinwh"
 DEFAULT_PORT = 502
 DEFAULT_WATCHDOG_HOURS = 0.5      # 30 minutes
 DEFAULT_POLLING_SECONDS = 10
+DEFAULT_CLOUD_ENABLED = False
 
 # --- Battery command power ranges (Watts) ---
 BATTERY_POWER_MIN_W = 0

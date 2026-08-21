@@ -32,6 +32,7 @@ from franklinwh_local_api import (
 )
 
 if TYPE_CHECKING:
+    from .cloud import FranklinWHCloudClient
     from .number import FranklinBatteryPowerNumber, FranklinReserveNumber
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,6 +61,7 @@ class FranklinWHCoordinator(DataUpdateCoordinator[FranklinWHStatus]):
         poll_interval_s: float,
         watchdog_seconds: float,
         device_info: FranklinWHDeviceInfo,
+        cloud_client: "FranklinWHCloudClient | None" = None,
     ) -> None:
         super().__init__(
             hass,
@@ -71,6 +73,15 @@ class FranklinWHCoordinator(DataUpdateCoordinator[FranklinWHStatus]):
         self.client = client
         self.watchdog_seconds = watchdog_seconds
         self.device_info = device_info
+
+        # None unless the user has explicitly enabled Cloud Control in
+        # the Options Flow (disabled by default). When set, select.py
+        # and number.py use it instead of local Modbus writes for
+        # mode-switching and reserve % updates only - all readback
+        # (displayed values on every entity) always comes from local
+        # Modbus polling regardless of this being set. See cloud.py's
+        # module docstring and LIMITATIONS.md.
+        self.cloud_client = cloud_client
 
         self.self_reserve_number: "FranklinReserveNumber | None" = None
         self.tou_reserve_number: "FranklinReserveNumber | None" = None

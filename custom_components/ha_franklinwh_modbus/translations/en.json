@@ -28,16 +28,26 @@
           "host": "IP Address",
           "port": "Port",
           "watchdog_hours": "Battery command watchdog (hours)",
-          "polling_seconds": "Polling interval (seconds)"
+          "polling_seconds": "Polling interval (seconds)",
+          "cloud_enabled": "Enable Cloud Control (advanced)"
         },
         "data_description": {
           "watchdog_hours": "How long a manual battery charge/discharge command stays active before being automatically released, in case you forget to stop it manually.",
-          "polling_seconds": "How often to poll the aGate for updated status."
+          "polling_seconds": "How often to poll the aGate for updated status.",
+          "cloud_enabled": "Uses your FranklinWH account to switch operating mode and set reserve % when the aGate does not accept these writes over local Modbus. All sensor data always stays local. See LIMITATIONS.md."
+        }
+      },
+      "cloud_credentials": {
+        "title": "FranklinWH Account",
+        "data": {
+          "cloud_email": "Email",
+          "cloud_password": "Password"
         }
       }
     },
     "error": {
       "cannot_connect": "Could not connect to the aGate. Check the IP address and port.",
+      "cloud_credentials_required": "Enter your FranklinWH account email and password to enable Cloud Control.",
       "unknown": "Unexpected error occurred."
     }
   },

@@ -23,11 +23,16 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers import selector
 
 from .const import (
+    CONF_CLOUD_EMAIL,
+    CONF_CLOUD_ENABLED,
+    CONF_CLOUD_PASSWORD,
     CONF_NAME,
     CONF_POLLING_SECONDS,
     CONF_WATCHDOG_HOURS,
+    DEFAULT_CLOUD_ENABLED,
     DEFAULT_NAME,
     DEFAULT_PORT,
     DEFAULT_POLLING_SECONDS,
@@ -96,6 +101,7 @@ class FranklinWHModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     options={
                         CONF_WATCHDOG_HOURS: DEFAULT_WATCHDOG_HOURS,
                         CONF_POLLING_SECONDS: DEFAULT_POLLING_SECONDS,
+                        CONF_CLOUD_ENABLED: DEFAULT_CLOUD_ENABLED,
                     },
                 )
 
@@ -112,12 +118,22 @@ class FranklinWHModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 class FranklinWHModbusOptionsFlow(config_entries.OptionsFlow):
     """Options flow, reachable via the integration's 'CONFIGURE' button
-    in HA's Devices & Services UI. Lets the user edit host/port/name
-    plus the two integration-specific tunables (watchdog hours, polling
-    interval) without needing to remove and re-add the integration.
+    in HA's Devices & Services UI.
+
+    Two steps:
+      1. init - host/port/name, polling/watchdog tunables, and the
+         Enable Cloud Control checkbox.
+      2. cloud_credentials - only shown if Enable Cloud Control was
+         just checked in step 1. Collects the FranklinWH account
+         email/password used as a fallback for mode-switching and
+         reserve % when local Modbus writes aren't accepted by the
+         hardware - see LIMITATIONS.md.
 
     self.config_entry is provided by the OptionsFlow base class.
     """
+
+    def __init__(self) -> None:
+        self._pending_data: dict[str, Any] = {}
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -138,8 +154,6 @@ class FranklinWHModbusOptionsFlow(config_entries.OptionsFlow):
                 errors["base"] = "unknown"
 
             if not errors:
-                # data (name/host/port) and options (watchdog/polling)
-                # are stored separately in a ConfigEntry - update both.
                 self.hass.config_entries.async_update_entry(
                     self.config_entry,
                     data={
@@ -149,11 +163,23 @@ class FranklinWHModbusOptionsFlow(config_entries.OptionsFlow):
                         CONF_PORT: port,
                     },
                 )
+
+                if user_input[CONF_CLOUD_ENABLED]:
+                    self._pending_data = {
+                        CONF_WATCHDOG_HOURS: user_input[CONF_WATCHDOG_HOURS],
+                        CONF_POLLING_SECONDS: user_input[CONF_POLLING_SECONDS],
+                        CONF_CLOUD_ENABLED: True,
+                    }
+                    return await self.async_step_cloud_credentials()
+
                 return self.async_create_entry(
                     title="",
                     data={
                         CONF_WATCHDOG_HOURS: user_input[CONF_WATCHDOG_HOURS],
                         CONF_POLLING_SECONDS: user_input[CONF_POLLING_SECONDS],
+                        CONF_CLOUD_ENABLED: False,
+                        CONF_CLOUD_EMAIL: current.get(CONF_CLOUD_EMAIL, ""),
+                        CONF_CLOUD_PASSWORD: current.get(CONF_CLOUD_PASSWORD, ""),
                     },
                 )
 
@@ -172,6 +198,51 @@ class FranklinWHModbusOptionsFlow(config_entries.OptionsFlow):
                     CONF_POLLING_SECONDS,
                     default=current.get(CONF_POLLING_SECONDS, DEFAULT_POLLING_SECONDS),
                 ): vol.Coerce(int),
+                vol.Required(
+                    CONF_CLOUD_ENABLED,
+                    default=current.get(CONF_CLOUD_ENABLED, DEFAULT_CLOUD_ENABLED),
+                ): bool,
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+
+    async def async_step_cloud_credentials(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        errors: dict[str, str] = {}
+        current = {**self.config_entry.data, **self.config_entry.options}
+
+        if user_input is not None:
+            cloud_email = user_input[CONF_CLOUD_EMAIL]
+            cloud_password = user_input[CONF_CLOUD_PASSWORD]
+
+            if not (cloud_email and cloud_password):
+                errors["base"] = "cloud_credentials_required"
+
+            if not errors:
+                return self.async_create_entry(
+                    title="",
+                    data={
+                        **self._pending_data,
+                        CONF_CLOUD_EMAIL: cloud_email,
+                        CONF_CLOUD_PASSWORD: cloud_password,
+                    },
+                )
+
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_CLOUD_EMAIL, default=current.get(CONF_CLOUD_EMAIL, "")
+                ): str,
+                vol.Required(
+                    CONF_CLOUD_PASSWORD, default=current.get(CONF_CLOUD_PASSWORD, "")
+                ): selector.TextSelector(
+                    selector.TextSelectorConfig(
+                        type=selector.TextSelectorType.PASSWORD
+                    )
+                ),
+            }
+        )
+        return self.async_show_form(
+            step_id="cloud_credentials", data_schema=schema, errors=errors
+        )
