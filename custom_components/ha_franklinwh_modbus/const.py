@@ -33,10 +33,20 @@ DEFAULT_POLLING_SECONDS = 10
 DEFAULT_CLOUD_ENABLED = False
 
 # --- Battery command power ranges (Watts) ---
+# The real max comes from the battery's SunSpec M702 nameplate rating,
+# read once at setup time (see __init__.py); FALLBACK_BATTERY_POWER_MAX_W
+# is only used if that read fails.
 BATTERY_POWER_MIN_W = 0
-BATTERY_POWER_MAX_W = 5000
-BATTERY_POWER_STEP_W = 50
+FALLBACK_BATTERY_POWER_MAX_W = 5000
+BATTERY_POWER_STEP_W = 1
 DEFAULT_BATTERY_POWER_W = 1000
+
+# --- Battery command duration Numbers (minutes) ---
+# 0 means "not set" - the watchdog_hours option is used instead.
+BATTERY_DURATION_MIN_MIN = 0
+BATTERY_DURATION_MAX_MIN = 1440
+BATTERY_DURATION_STEP_MIN = 1
+DEFAULT_BATTERY_DURATION_MIN = 0
 
 # --- Reserve % range ---
 RESERVE_PCT_MIN = 5

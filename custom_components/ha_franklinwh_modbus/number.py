@@ -49,9 +49,16 @@ Four Number entities:
    The value and dirty flag persist across HA restarts via
    RestoreEntity.
 
-2. FranklinBatteryPowerNumber (charge, discharge) - a local value with
-   no hardware interaction. Read by the corresponding battery
-   charge/discharge switch in switch.py when the switch is turned on.
+2. FranklinBatteryPowerNumber (charge, discharge) - a power setpoint
+   read by the corresponding battery charge/discharge switch in
+   switch.py when the switch is turned on. While that direction's
+   command is ACTIVE, setting the value also rewrites the aGate's
+   WSetPct in place (the API's live power-adjustment fast path); see
+   the class docstring.
+
+3. FranklinBatteryDurationNumber (charge, discharge) - the auto-release
+   duration in minutes per direction. 0 means "not set" - the
+   watchdog_hours option is used instead.
 """
 from __future__ import annotations
 
@@ -66,11 +73,15 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import (
-    BATTERY_POWER_MAX_W,
+    BATTERY_DURATION_MAX_MIN,
+    BATTERY_DURATION_MIN_MIN,
+    BATTERY_DURATION_STEP_MIN,
     BATTERY_POWER_MIN_W,
     BATTERY_POWER_STEP_W,
+    DEFAULT_BATTERY_DURATION_MIN,
     DEFAULT_BATTERY_POWER_W,
     DOMAIN,
+    FALLBACK_BATTERY_POWER_MAX_W,
     RESERVE_PCT_MAX,
     RESERVE_PCT_MIN,
     RESERVE_PCT_STEP,
@@ -225,21 +236,122 @@ class FranklinReserveNumber(FranklinWHBaseEntity, RestoreEntity, NumberEntity):
 
 
 class FranklinBatteryPowerNumber(FranklinWHBaseEntity, RestoreEntity, NumberEntity):
-    """A local power value with no hardware interaction. Read by the
-    corresponding battery charge/discharge switch in switch.py when
-    the switch is turned on."""
+    """Power setpoint (W) for one battery command direction.
+
+    Read by the corresponding switch in switch.py when the command is
+    turned on. While that direction's command is ACTIVE, setting the
+    value also rewrites the aGate's WSetPct in place (the API's live
+    power-adjustment fast path - no disable/enable cycle); the
+    auto-release deadline is left untouched. While no command is active
+    (or the opposite direction is active) the value is saved locally
+    only - the aGate is not touched at all, and in particular changing
+    the charge value while a discharge is active must NOT release the
+    discharge.
+
+    The max value is the battery's M702 nameplate rating, read once at
+    setup time; the step is 1W (BOX input, so there is no
+    slider-coarseness penalty).
+    """
 
     _attr_native_min_value = BATTERY_POWER_MIN_W
-    _attr_native_max_value = BATTERY_POWER_MAX_W
+    _attr_native_max_value = FALLBACK_BATTERY_POWER_MAX_W
     _attr_native_step = BATTERY_POWER_STEP_W
     _attr_native_unit_of_measurement = "W"
+    _attr_mode = NumberMode.BOX
+
+    def __init__(
+        self,
+        coordinator: FranklinWHCoordinator,
+        key: str,
+        direction: str,
+    ) -> None:
+        super().__init__(coordinator)
+        self._direction = direction
+        self._attr_translation_key = key
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_{key}"
+        # Instance-level override of the class attribute: the real
+        # nameplate max from the M702 init read (or the fallback).
+        self._attr_native_max_value = coordinator.max_power_for(direction)
+        self._attr_native_value: float = min(
+            float(DEFAULT_BATTERY_POWER_W), self._attr_native_max_value
+        )
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state is not None and last_state.state not in (
+            None, "unknown", "unavailable"
+        ):
+            # Clamp in case the stored value is outside the real
+            # nameplate range (e.g. set back when the max was the
+            # hardcoded 5000W).
+            self._attr_native_value = min(
+                max(float(last_state.state), self._attr_native_min_value),
+                self._attr_native_max_value,
+            )
+
+    async def async_set_native_value(self, value: float) -> None:
+        previous_value = self._attr_native_value
+        self._attr_native_value = value
+
+        data = self.coordinator.data
+        if data is not None:
+            if self._direction == "charge":
+                active = data.battery_command_charge_w > 0
+            else:
+                active = data.battery_command_discharge_w > 0
+            if active:
+                # Live rewrite: the API's fast path rewrites WSetPct in
+                # place (single register write + read-back verify) and
+                # does not touch the auto-release watchdog, so the
+                # original stop time is preserved.
+                try:
+                    if self._direction == "charge":
+                        await self.coordinator.client.async_start_battery_charge(
+                            power_w=value
+                        )
+                    else:
+                        await self.coordinator.client.async_start_battery_discharge(
+                            power_w=value
+                        )
+                except Exception:
+                    _LOGGER.warning(
+                        "Failed to rewrite the active battery %s setpoint to "
+                        "%.0fW on the aGate - reverting to %.0fW",
+                        self._direction,
+                        value,
+                        previous_value,
+                        exc_info=True
+                    )
+                    self._attr_native_value = previous_value
+
+        # Not active (or the opposite direction is active): the value is
+        # saved locally only and takes effect the next time this
+        # direction's switch is turned on.
+        self.async_write_ha_state()
+
+
+class FranklinBatteryDurationNumber(
+    FranklinWHBaseEntity, RestoreEntity, NumberEntity
+):
+    """Auto-release duration (minutes) for one battery command direction.
+
+    0 means "not set" - the watchdog_hours option is used instead.
+    Read by the corresponding switch in switch.py when the command is
+    turned on; persisted across restarts via RestoreEntity.
+    """
+
+    _attr_native_min_value = BATTERY_DURATION_MIN_MIN
+    _attr_native_max_value = BATTERY_DURATION_MAX_MIN
+    _attr_native_step = BATTERY_DURATION_STEP_MIN
+    _attr_native_unit_of_measurement = "min"
     _attr_mode = NumberMode.BOX
 
     def __init__(self, coordinator: FranklinWHCoordinator, key: str) -> None:
         super().__init__(coordinator)
         self._attr_translation_key = key
         self._attr_unique_id = f"{coordinator.entry.entry_id}_{key}"
-        self._attr_native_value: float = float(DEFAULT_BATTERY_POWER_W)
+        self._attr_native_value: float = float(DEFAULT_BATTERY_DURATION_MIN)
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -263,13 +375,25 @@ async def async_setup_entry(
 
     self_reserve_number = FranklinReserveNumber(coordinator, OperatingMode.SELF_CONSUMPTION)
     tou_reserve_number = FranklinReserveNumber(coordinator, OperatingMode.TOU)
-    charge_power_number = FranklinBatteryPowerNumber(coordinator, "battery_charge_power")
-    discharge_power_number = FranklinBatteryPowerNumber(coordinator, "battery_discharge_power")
+    charge_power_number = FranklinBatteryPowerNumber(
+        coordinator, "battery_charge_power", "charge"
+    )
+    discharge_power_number = FranklinBatteryPowerNumber(
+        coordinator, "battery_discharge_power", "discharge"
+    )
+    charge_duration_number = FranklinBatteryDurationNumber(
+        coordinator, "battery_charge_duration"
+    )
+    discharge_duration_number = FranklinBatteryDurationNumber(
+        coordinator, "battery_discharge_duration"
+    )
 
     coordinator.self_reserve_number = self_reserve_number
     coordinator.tou_reserve_number = tou_reserve_number
     coordinator.charge_power_number = charge_power_number
     coordinator.discharge_power_number = discharge_power_number
+    coordinator.charge_duration_number = charge_duration_number
+    coordinator.discharge_duration_number = discharge_duration_number
 
     async_add_entities(
         [
@@ -277,5 +401,7 @@ async def async_setup_entry(
             tou_reserve_number,
             charge_power_number,
             discharge_power_number,
+            charge_duration_number,
+            discharge_duration_number,
         ]
     )

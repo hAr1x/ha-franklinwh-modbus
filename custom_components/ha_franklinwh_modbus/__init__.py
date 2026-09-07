@@ -39,6 +39,7 @@ from .const import (
     DEFAULT_POLLING_SECONDS,
     DEFAULT_WATCHDOG_HOURS,
     DOMAIN,
+    FALLBACK_BATTERY_POWER_MAX_W,
 )
 from .coordinator import FranklinWHCoordinator
 
@@ -81,6 +82,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             serial_number="unknown",
         )
 
+    # Battery nameplate power limits, read once from SunSpec M702 at
+    # setup time - never polled afterwards (a nameplate value does not
+    # change; the power Numbers' max values depend on it).
+    try:
+        charge_power_max_w, discharge_power_max_w = await client.async_get_battery_limits()
+    except Exception:
+        _LOGGER.warning(
+            "Could not read battery power limits (M702) from aGate at %s:%s - "
+            "falling back to %.0fW for both directions",
+            host,
+            port,
+            FALLBACK_BATTERY_POWER_MAX_W,
+            exc_info=True,
+        )
+        charge_power_max_w = FALLBACK_BATTERY_POWER_MAX_W
+        discharge_power_max_w = FALLBACK_BATTERY_POWER_MAX_W
+
     watchdog_hours = entry.options.get(CONF_WATCHDOG_HOURS, DEFAULT_WATCHDOG_HOURS)
     polling_seconds = entry.options.get(CONF_POLLING_SECONDS, DEFAULT_POLLING_SECONDS)
 
@@ -104,7 +122,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         watchdog_seconds=watchdog_hours * 3600.0,
         device_info=device_info,
         cloud_client=cloud_client,
+        charge_power_max_w=charge_power_max_w,
+        discharge_power_max_w=discharge_power_max_w,
     )
+    # Load a persisted battery-command deadline (if any) before the
+    # first refresh; the reconcile logic re-arms the client watchdog
+    # (or releases an already-expired command) on the first successful
+    # poll.
+    await coordinator.async_load_deadline()
     await coordinator.async_config_entry_first_refresh()
 
     hass.data.setdefault(DOMAIN, {})

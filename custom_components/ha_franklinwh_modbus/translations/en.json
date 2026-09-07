@@ -32,7 +32,7 @@
           "cloud_enabled": "Enable Cloud Control (advanced)"
         },
         "data_description": {
-          "watchdog_hours": "How long a manual battery charge/discharge command stays active before being automatically released, in case you forget to stop it manually.",
+          "watchdog_hours": "How long a manual battery charge/discharge command stays active before being automatically released, in case you forget to stop it manually. Used as a fallback when the corresponding duration Number is 0 (unset) - the per-direction duration Numbers take precedence.",
           "polling_seconds": "How often to poll the aGate for updated status.",
           "cloud_enabled": "Uses your FranklinWH account to switch operating mode and set reserve % when the aGate does not accept these writes over local Modbus. All sensor data always stays local. See LIMITATIONS.md."
         }
@@ -63,6 +63,9 @@
       "home_load_power": { "name": "Home Load Power" },
       "battery_command_charge_power": { "name": "Battery Command Charge Power" },
       "battery_command_discharge_power": { "name": "Battery Command Discharge Power" },
+      "battery_charge_max_power": { "name": "Battery Charge Max Power" },
+      "battery_discharge_max_power": { "name": "Battery Discharge Max Power" },
+      "battery_command_time_remaining": { "name": "Battery Command Time Remaining" },
       "battery_capacity": { "name": "Battery Capacity" },
       "battery_energy_available": { "name": "Battery Energy Available" },
       "battery_soc": { "name": "Battery State of Charge" },
@@ -90,7 +93,9 @@
       "self_consumption_reserve": { "name": "Self-Consumption Reserve" },
       "tou_reserve": { "name": "TOU Reserve" },
       "battery_charge_power": { "name": "Battery Charge Power" },
-      "battery_discharge_power": { "name": "Battery Discharge Power" }
+      "battery_discharge_power": { "name": "Battery Discharge Power" },
+      "battery_charge_duration": { "name": "Battery Charge Duration" },
+      "battery_discharge_duration": { "name": "Battery Discharge Duration" }
     },
     "switch": {
       "battery_charge": { "name": "Battery Charge" },

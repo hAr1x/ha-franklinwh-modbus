@@ -34,9 +34,11 @@ from homeassistant.const import (
     UnitOfFrequency,
     UnitOfPower,
     UnitOfTemperature,
+    UnitOfTime,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 from .coordinator import FranklinWHCoordinator
@@ -325,12 +327,82 @@ class FranklinSensor(FranklinWHBaseEntity, SensorEntity):
         return self.entity_description.value_fn(self.coordinator.data)
 
 
+class FranklinBatteryMaxPowerSensor(FranklinWHBaseEntity, SensorEntity):
+    """Nameplate max power (kW) for one battery command direction, from
+    the M702 init read - set once at setup, never polled."""
+
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_native_unit_of_measurement = UnitOfPower.KILO_WATT
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 3
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator: FranklinWHCoordinator, direction: str) -> None:
+        super().__init__(coordinator)
+        self._direction = direction
+        self._attr_translation_key = f"battery_{direction}_max_power"
+        self._attr_unique_id = (
+            f"{coordinator.entry.entry_id}_battery_{direction}_max_power"
+        )
+        self._attr_icon = (
+            "mdi:battery-charging"
+            if direction == "charge"
+            else "mdi:battery-arrow-down"
+        )
+
+    @property
+    def native_value(self) -> float | None:
+        return _watts_to_kw(self.coordinator.max_power_for(self._direction))
+
+
+class FranklinBatteryCommandTimeRemainingSensor(FranklinWHBaseEntity, SensorEntity):
+    """Time remaining (seconds) until the active battery command is
+    automatically released.
+
+    Computed locally as (persisted deadline - now) and refreshed on
+    every coordinator poll - no extra aGate traffic. unknown when no
+    command is active or no deadline is tracked.
+    """
+
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:timer-sand"
+
+    def __init__(self, coordinator: FranklinWHCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_translation_key = "battery_command_time_remaining"
+        self._attr_unique_id = (
+            f"{coordinator.entry.entry_id}_battery_command_time_remaining"
+        )
+
+    @property
+    def native_value(self) -> float | None:
+        data = self.coordinator.data
+        if data is None:
+            return None
+        if data.battery_command_charge_w > 0:
+            active = "charge"
+        elif data.battery_command_discharge_w > 0:
+            active = "discharge"
+        else:
+            return None
+        deadline = self.coordinator.deadline
+        if deadline is None or self.coordinator.deadline_direction != active:
+            return None
+        return max(0.0, (deadline - dt_util.utcnow()).total_seconds())
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: FranklinWHCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
+    entities: list[SensorEntity] = [
         FranklinSensor(coordinator, description) for description in ALL_SENSORS
-    )
+    ]
+    entities.append(FranklinBatteryMaxPowerSensor(coordinator, "charge"))
+    entities.append(FranklinBatteryMaxPowerSensor(coordinator, "discharge"))
+    entities.append(FranklinBatteryCommandTimeRemainingSensor(coordinator))
+    async_add_entities(entities)
