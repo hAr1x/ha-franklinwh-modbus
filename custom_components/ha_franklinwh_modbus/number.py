@@ -101,6 +101,7 @@ class FranklinReserveNumber(FranklinWHBaseEntity, RestoreEntity, NumberEntity):
     _attr_native_step = RESERVE_PCT_STEP
     _attr_mode = NumberMode.SLIDER
     _attr_native_unit_of_measurement = "%"
+    _attr_icon = "mdi:percent-box"
 
     def __init__(
         self,
@@ -269,6 +270,11 @@ class FranklinBatteryPowerNumber(FranklinWHBaseEntity, RestoreEntity, NumberEnti
         self._direction = direction
         self._attr_translation_key = key
         self._attr_unique_id = f"{coordinator.entry.entry_id}_{key}"
+        # charge = arrow up, discharge = arrow down (mirror pair, same
+        # family as the battery command power sensors).
+        self._attr_icon = (
+            "mdi:battery-arrow-up" if direction == "charge" else "mdi:battery-arrow-down"
+        )
         # Instance-level override of the class attribute: the real
         # nameplate max from the M702 init read (or the fallback).
         self._attr_native_max_value = coordinator.max_power_for(direction)
@@ -346,6 +352,7 @@ class FranklinBatteryDurationNumber(
     _attr_native_step = BATTERY_DURATION_STEP_MIN
     _attr_native_unit_of_measurement = "min"
     _attr_mode = NumberMode.BOX
+    _attr_icon = "mdi:clock-outline"
 
     def __init__(self, coordinator: FranklinWHCoordinator, key: str) -> None:
         super().__init__(coordinator)

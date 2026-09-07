@@ -65,6 +65,8 @@ BINARY_SENSORS: tuple[FranklinBinarySensorDescription, ...] = (
         translation_key="battery_command_active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_registry_enabled_default=False,
+        icon_on="mdi:timer-sand",
+        icon_off="mdi:timer-sand-complete",
         value_fn=lambda s: s.battery_command_active,
     ),
 )

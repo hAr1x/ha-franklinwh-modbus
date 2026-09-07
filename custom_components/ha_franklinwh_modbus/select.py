@@ -61,6 +61,7 @@ class FranklinOperatingModeSelect(FranklinWHBaseEntity, SelectEntity):
     Self-Consumption, or TOU."""
 
     _attr_translation_key = "operating_mode"
+    _attr_icon = "mdi:tune"
     _attr_options: ClassVar[list[str]] = list(_MODE_TO_LABEL.values())
 
     def __init__(self, coordinator: FranklinWHCoordinator) -> None:

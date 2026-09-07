@@ -55,6 +55,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class FranklinBatteryChargeSwitch(FranklinWHBaseEntity, SwitchEntity):
     _attr_translation_key = "battery_charge"
+    _attr_icon = "mdi:battery-arrow-up"
 
     def __init__(self, coordinator: FranklinWHCoordinator) -> None:
         super().__init__(coordinator)
@@ -87,6 +88,7 @@ class FranklinBatteryChargeSwitch(FranklinWHBaseEntity, SwitchEntity):
 
 class FranklinBatteryDischargeSwitch(FranklinWHBaseEntity, SwitchEntity):
     _attr_translation_key = "battery_discharge"
+    _attr_icon = "mdi:battery-arrow-down"
 
     def __init__(self, coordinator: FranklinWHCoordinator) -> None:
         super().__init__(coordinator)

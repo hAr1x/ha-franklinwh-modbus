@@ -229,6 +229,7 @@ PERCENTAGE_SENSORS: tuple[FranklinSensorDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         entity_registry_enabled_default=False,
+        icon="mdi:percent-box",
         value_fn=lambda s: s.self_reserve_pct,
     ),
     FranklinSensorDescription(
@@ -237,6 +238,7 @@ PERCENTAGE_SENSORS: tuple[FranklinSensorDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         entity_registry_enabled_default=False,
+        icon="mdi:percent-box",
         value_fn=lambda s: s.tou_reserve_pct,
     ),
 )
@@ -249,6 +251,7 @@ VOLTAGE_SENSORS: tuple[FranklinSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         state_class=SensorStateClass.MEASUREMENT,
         entity_registry_enabled_default=False,
+        icon="mdi:current-ac",
         value_fn=lambda s: s.grid_voltage_ln_v,
     ),
     FranklinSensorDescription(
@@ -258,6 +261,7 @@ VOLTAGE_SENSORS: tuple[FranklinSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         state_class=SensorStateClass.MEASUREMENT,
         entity_registry_enabled_default=False,
+        icon="mdi:current-ac",
         value_fn=lambda s: s.grid_voltage_ll_v,
     ),
 )
@@ -269,6 +273,7 @@ MISC_SENSORS: tuple[FranklinSensorDescription, ...] = (
         device_class=SensorDeviceClass.FREQUENCY,
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:sine-wave",
         value_fn=lambda s: s.grid_frequency_hz,
     ),
     FranklinSensorDescription(
@@ -277,6 +282,7 @@ MISC_SENSORS: tuple[FranklinSensorDescription, ...] = (
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:thermometer",
         value_fn=lambda s: s.ambient_temp_c,
     ),
     FranklinSensorDescription(
@@ -285,11 +291,13 @@ MISC_SENSORS: tuple[FranklinSensorDescription, ...] = (
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:thermometer-lines",
         value_fn=lambda s: s.cabinet_temp_c,
     ),
     FranklinSensorDescription(
         key="tou_dispatch_state",
         translation_key="tou_dispatch_state",
+        icon="mdi:calendar-clock",
         value_fn=lambda s: s.tou_dispatch_state,
     ),
     FranklinSensorDescription(
@@ -297,6 +305,7 @@ MISC_SENSORS: tuple[FranklinSensorDescription, ...] = (
         translation_key="battery_command_pct_raw",
         state_class=SensorStateClass.MEASUREMENT,
         entity_registry_enabled_default=False,
+        icon="mdi:percent",
         value_fn=lambda s: s.battery_command_pct_raw,
     ),
 )
