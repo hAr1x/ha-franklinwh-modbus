@@ -37,10 +37,15 @@ import hashlib
 import logging
 from typing import Any
 
-import httpx
+from aiohttp import ClientError, ClientSession, ClientTimeout
 from franklinwh_local_api import OperatingMode
 
 _LOGGER = logging.getLogger(__name__)
+
+# Passed per request: Home Assistant's shared aiohttp session defaults to a
+# 300s total timeout, which is far longer than we want for a user-initiated
+# mode switch / reserve update.
+_TIMEOUT = ClientTimeout(total=30)
 
 _URL_BASE = "https://energy.franklinwh.com/"
 _LOGIN_URL = _URL_BASE + "hes-gateway/terminal/initialize/appUserOrInstallerLogin"
@@ -87,22 +92,22 @@ class FranklinWHCloudAuthError(FranklinWHCloudError):
 class FranklinWHCloudClient:
     """Minimal, internal-use-only FranklinWH Cloud API client.
 
+    The HTTP session is injected and owned by Home Assistant (the shared
+    aiohttp session from homeassistant.helpers.aiohttp_client) - this
+    client never creates or closes it.
+
     Usage:
-        cloud = FranklinWHCloudClient(email, password)
+        cloud = FranklinWHCloudClient(async_get_clientsession(hass), email, password)
         await cloud.async_set_mode_cloud(OperatingMode.TOU)
         await cloud.async_update_soc_cloud(OperatingMode.SELF_CONSUMPTION, 30)
-        await cloud.async_close()
     """
 
-    def __init__(self, email: str, password: str) -> None:
+    def __init__(self, session: ClientSession, email: str, password: str) -> None:
+        self._session = session
         self._email = email
         self._password = password
         self._token: str | None = None
         self._gateway_id: str | None = None
-        self._session = httpx.AsyncClient(http2=True)
-
-    async def async_close(self) -> None:
-        await self._session.aclose()
 
     # ------------------------------------------------------------------
     # Auth / gateway discovery
@@ -115,13 +120,18 @@ class FranklinWHCloudClient:
             "lang": "en_US",
             "type": _LOGIN_TYPE_USER,
         }
-        resp = await self._session.post(
-            _LOGIN_URL,
-            data=form,
-            headers={"softwareversion": _EMULATE_APP_VERSION},
-            timeout=30,
-        )
-        js = resp.json()
+        try:
+            resp = await self._session.post(
+                _LOGIN_URL,
+                data=form,
+                headers={"softwareversion": _EMULATE_APP_VERSION},
+                timeout=_TIMEOUT,
+            )
+            js = await resp.json()
+        except ClientError as err:
+            raise FranklinWHCloudError(
+                f"FranklinWH Cloud login request failed: {err}"
+            ) from err
         if js.get("code") != 200:
             raise FranklinWHCloudAuthError(
                 f"FranklinWH Cloud login failed: {js.get('message', 'unknown error')}"
@@ -152,19 +162,35 @@ class FranklinWHCloudClient:
         self, method: str, url: str, params: dict[str, Any]
     ) -> dict[str, Any]:
         params = {**params, "lang": "en_US"}
+        # aiohttp (via yarl) refuses to encode a None query value at all - it
+        # raises TypeError deep inside the request call. Refuse here instead,
+        # as our own typed error, so a missing field in the gateway's response
+        # is reported as a Cloud API failure (and handled as one by the
+        # entities) rather than as an unexpected crash.
+        missing = sorted(k for k, v in params.items() if v is None)
+        if missing:
+            raise FranklinWHCloudError(
+                f"Refusing to send {url.split('/')[-1]} - missing parameter(s): "
+                f"{', '.join(missing)}"
+            )
 
         async def _do() -> dict[str, Any]:
             resp = await self._session.request(
                 method, url, params=params,
-                headers={"loginToken": self._token or ""}, timeout=30,
+                headers={"loginToken": self._token or ""}, timeout=_TIMEOUT,
             )
-            return resp.json()
+            return await resp.json()
 
-        js = await _do()
-        if js.get("code") in _TOKEN_EXPIRED_CODES:
-            _LOGGER.debug("FranklinWH Cloud token expired - re-logging in")
-            await self._async_login()
+        try:
             js = await _do()
+            if js.get("code") in _TOKEN_EXPIRED_CODES:
+                _LOGGER.debug("FranklinWH Cloud token expired - re-logging in")
+                await self._async_login()
+                js = await _do()
+        except ClientError as err:
+            raise FranklinWHCloudError(
+                f"FranklinWH Cloud request failed: {err}"
+            ) from err
         return js
 
     # ------------------------------------------------------------------

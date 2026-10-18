@@ -27,6 +27,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .cloud import FranklinWHCloudClient
 from .const import (
@@ -107,7 +108,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         cloud_email = entry.options.get(CONF_CLOUD_EMAIL, "")
         cloud_password = entry.options.get(CONF_CLOUD_PASSWORD, "")
         if cloud_email and cloud_password:
-            cloud_client = FranklinWHCloudClient(cloud_email, cloud_password)
+            cloud_client = FranklinWHCloudClient(
+                async_get_clientsession(hass), cloud_email, cloud_password
+            )
         else:
             _LOGGER.warning(
                 "Cloud Control is enabled but no email/password is set - "
@@ -155,6 +158,4 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok:
         coordinator: FranklinWHCoordinator = hass.data[DOMAIN].pop(entry.entry_id)
         await coordinator.client.close()
-        if coordinator.cloud_client is not None:
-            await coordinator.cloud_client.async_close()
     return unload_ok
