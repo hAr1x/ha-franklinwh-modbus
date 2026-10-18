@@ -42,9 +42,8 @@ from franklinwh_local_api import OperatingMode
 
 _LOGGER = logging.getLogger(__name__)
 
-# Passed per request: Home Assistant's shared aiohttp session defaults to a
-# 300s total timeout, which is far longer than we want for a user-initiated
-# mode switch / reserve update.
+# Per-request timeout. Home Assistant's shared aiohttp session defaults to a
+# 300s total timeout.
 _TIMEOUT = ClientTimeout(total=30)
 
 _URL_BASE = "https://energy.franklinwh.com/"
@@ -116,7 +115,10 @@ class FranklinWHCloudClient:
     async def _async_login(self) -> None:
         form = {
             "account": self._email,
-            "password": hashlib.md5(self._password.encode("utf-8")).hexdigest(),
+            # The API expects the password MD5-hashed, same as the mobile app.
+            "password": hashlib.md5(
+                self._password.encode("utf-8"), usedforsecurity=False
+            ).hexdigest(),
             "lang": "en_US",
             "type": _LOGIN_TYPE_USER,
         }
@@ -162,11 +164,8 @@ class FranklinWHCloudClient:
         self, method: str, url: str, params: dict[str, Any]
     ) -> dict[str, Any]:
         params = {**params, "lang": "en_US"}
-        # aiohttp (via yarl) refuses to encode a None query value at all - it
-        # raises TypeError deep inside the request call. Refuse here instead,
-        # as our own typed error, so a missing field in the gateway's response
-        # is reported as a Cloud API failure (and handled as one by the
-        # entities) rather than as an unexpected crash.
+        # aiohttp refuses to encode a None query value (TypeError). Report a
+        # missing parameter as a FranklinWHCloudError instead.
         missing = sorted(k for k, v in params.items() if v is None)
         if missing:
             raise FranklinWHCloudError(
